@@ -8,11 +8,26 @@ public class PlayerCon : MonoBehaviour
     // 무기 저장
     public GameObject[] weapons;
     public bool[] hasWeapons;
+    public GameObject[] grenades;
+    public int hasGrenades;
+
+
+    // 탄약, 동전, 체력, 수류탄 변수 생성
+    public int ammo;
+    public int coin;
+    public int health;
+    
+    // 각 수치의 최대값을 저장할 변수 생성
+    public int maxAmmo;
+    public int maxCoin;
+    public int maxHealth;
+    public int maxHasGrenades;    
 
     float hAxis;
     float vAxis;
     bool wDown;
     bool jDown;
+    bool fDown;
     // 무기 선택 버튼 1, 2, 3
     bool sDown1;
     bool sDown2;
@@ -22,6 +37,7 @@ public class PlayerCon : MonoBehaviour
     bool isJump;
     bool isDodge;
     bool isSwap;
+    bool isFireReady = true;
 
     Vector3 moveVec;
     // Dodge(회피)중 방향전환 안되게.
@@ -31,8 +47,10 @@ public class PlayerCon : MonoBehaviour
 
     Rigidbody rigid;
     GameObject nearObject;
-    GameObject equipWeapon;     //장착중인 무기 저정 변수
+    // GameObject equipWeapon;     //장착중인 무기 저정 변수
+    Weapon equipWeapon;
     int equipWeaponIndex = -1;       // 현재 들고있는 무기 index
+    float fireDelay;
 
     private void Awake() {
         rigid = GetComponent<Rigidbody>();
@@ -46,6 +64,7 @@ public class PlayerCon : MonoBehaviour
         Move();
         Turn();
         Jump();
+        Attack();
         Dodge();
         Swap(); //무기 교체 함수
         Interaction();
@@ -57,6 +76,7 @@ public class PlayerCon : MonoBehaviour
         vAxis = Input.GetAxisRaw("Vertical");
         wDown = Input.GetButton("Walk");
         jDown = Input.GetButtonDown("Jump");
+        fDown = Input.GetButtonDown("Fire1");
         iDown = Input.GetButtonDown("Interaction");
         sDown1 = Input.GetButtonDown("Swap1");
         sDown2 = Input.GetButtonDown("Swap2");
@@ -69,7 +89,7 @@ public class PlayerCon : MonoBehaviour
 
         if(isDodge) moveVec = dodgeVec;
 
-        if(isSwap) moveVec = Vector3.zero;
+        if(isSwap || !isFireReady) moveVec = Vector3.zero;
 
         transform.position += moveVec * speed * (wDown ? 0.3f : 1f) *Time.deltaTime;
         anim.SetBool("isRun", moveVec != Vector3.zero);
@@ -89,6 +109,21 @@ public class PlayerCon : MonoBehaviour
             anim.SetBool("isJump", true);
             anim.SetTrigger("doJump");
             isJump = true;
+        }
+    }
+
+    void Attack()
+    {
+        if(equipWeapon == null) return;
+
+        fireDelay += Time.deltaTime;
+        isFireReady = equipWeapon.rate < fireDelay;
+
+        if(fDown && isFireReady && !isDodge && !isSwap)
+        {
+            equipWeapon.Use();
+            anim.SetTrigger("doSwing");
+            fireDelay = 0;
         }
     }
 
@@ -118,11 +153,11 @@ public class PlayerCon : MonoBehaviour
 
         if((sDown1 || sDown2 || sDown3) && !isJump && !isDodge)
         {
-            if(equipWeapon != null) equipWeapon.SetActive(false);
+            if(equipWeapon != null) equipWeapon.gameObject.SetActive(false);
 
             equipWeaponIndex = weaponIndex;
-            equipWeapon = weapons[weaponIndex];
-            equipWeapon.SetActive(true);
+            equipWeapon = weapons[weaponIndex].GetComponent<Weapon>();
+            equipWeapon.gameObject.SetActive(true);
 
             anim.SetTrigger("doSwap");
 
@@ -161,6 +196,32 @@ public class PlayerCon : MonoBehaviour
         if(other.gameObject.tag == "Floor") {
             anim.SetBool("isJump", false);
             isJump = false;
+        }
+    }
+
+    private void OnTriggerEnter(Collider other) {
+        if(other.tag == "Item") {
+            Item item = other.GetComponent<Item>();
+            switch(item.type) {
+                case Item.Type.Ammo:
+                    ammo += item.value;
+                    if (ammo > maxAmmo) ammo = maxAmmo;
+                    break;
+                case Item.Type.Coin:
+                    coin += item.value;
+                    if (coin > maxCoin) coin = maxCoin;
+                    break;
+                case Item.Type.Heart:
+                    health += item.value;
+                    if (health > maxHealth) health = maxHealth;
+                    break;
+                case Item.Type.Grenade:
+                grenades[hasGrenades].SetActive(true);
+                    hasGrenades += item.value;
+                    if (hasGrenades > maxHasGrenades) hasGrenades = maxHasGrenades;
+                    break;
+            }
+            Destroy(other.gameObject);
         }
     }
 
