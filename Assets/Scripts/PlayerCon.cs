@@ -10,6 +10,7 @@ public class PlayerCon : MonoBehaviour
     public bool[] hasWeapons;
     public GameObject[] grenades;
     public int hasGrenades;
+    public Camera followCamera; //총 발사시 - 카메라 변수 할당.
 
 
     // 탄약, 동전, 체력, 수류탄 변수 생성
@@ -28,6 +29,7 @@ public class PlayerCon : MonoBehaviour
     bool wDown;
     bool jDown;
     bool fDown;
+    bool rDown;     // 총알 재장전
     // 무기 선택 버튼 1, 2, 3
     bool sDown1;
     bool sDown2;
@@ -37,6 +39,7 @@ public class PlayerCon : MonoBehaviour
     bool isJump;
     bool isDodge;
     bool isSwap;
+    bool isReload;
     bool isFireReady = true;
 
     Vector3 moveVec;
@@ -65,6 +68,7 @@ public class PlayerCon : MonoBehaviour
         Turn();
         Jump();
         Attack();
+        Reload();
         Dodge();
         Swap(); //무기 교체 함수
         Interaction();
@@ -76,7 +80,8 @@ public class PlayerCon : MonoBehaviour
         vAxis = Input.GetAxisRaw("Vertical");
         wDown = Input.GetButton("Walk");
         jDown = Input.GetButtonDown("Jump");
-        fDown = Input.GetButtonDown("Fire1");
+        fDown = Input.GetButton("Fire1");
+        rDown = Input.GetButtonDown("Reload");
         iDown = Input.GetButtonDown("Interaction");
         sDown1 = Input.GetButtonDown("Swap1");
         sDown2 = Input.GetButtonDown("Swap2");
@@ -89,7 +94,7 @@ public class PlayerCon : MonoBehaviour
 
         if(isDodge) moveVec = dodgeVec;
 
-        if(isSwap || !isFireReady) moveVec = Vector3.zero;
+        if(isSwap || isReload || !isFireReady) moveVec = Vector3.zero;
 
         transform.position += moveVec * speed * (wDown ? 0.3f : 1f) *Time.deltaTime;
         anim.SetBool("isRun", moveVec != Vector3.zero);
@@ -99,7 +104,19 @@ public class PlayerCon : MonoBehaviour
     void Turn()
     {
         // 케릭터가 나아가는 방향으로 바라보기 구현
+        // 1. 키보드에 의한 회전
         transform.LookAt(transform.position + moveVec);
+
+        // 2. 마우스에 의한 회전
+        if (fDown) {
+            Ray ray = followCamera.ScreenPointToRay(Input.mousePosition);
+            RaycastHit rayHit;
+            if(Physics.Raycast(ray, out rayHit, 100f)) {
+                Vector3 nextVec = rayHit.point - transform.position;
+                nextVec.y = 0f;
+                transform.LookAt(transform.position + nextVec);
+            }
+        }
     }
 
     void Jump()
@@ -122,9 +139,34 @@ public class PlayerCon : MonoBehaviour
         if(fDown && isFireReady && !isDodge && !isSwap)
         {
             equipWeapon.Use();
-            anim.SetTrigger("doSwing");
+            anim.SetTrigger(equipWeapon.type == Weapon.Type.Melee ? "doSwing" : "doShot");
             fireDelay = 0;
         }
+    }
+
+    void Reload()
+    {
+        if(equipWeapon == null) return;
+
+        if(equipWeapon.type == Weapon.Type.Melee) return;
+
+        if(ammo == 0) return;
+
+        if(rDown && !isJump && !isDodge && !isSwap && isFireReady)
+        {
+            anim.SetTrigger("doReload");
+            isReload = true;
+
+            Invoke("ReloadOut", 3f);
+        }
+    }
+
+    void ReloadOut()
+    {
+        int reAmmo = ammo < equipWeapon.maxAmmo ? ammo : equipWeapon.maxAmmo;
+        equipWeapon.curAmmo = reAmmo;
+        ammo -= reAmmo;
+        isReload = false;
     }
 
     void Dodge()
