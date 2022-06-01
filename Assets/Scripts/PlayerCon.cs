@@ -41,6 +41,7 @@ public class PlayerCon : MonoBehaviour
     bool isSwap;
     bool isReload;
     bool isFireReady = true;
+    bool isBorder = false;  // 플레이어 벽 충돌 감지
 
     Vector3 moveVec;
     // Dodge(회피)중 방향전환 안되게.
@@ -96,7 +97,12 @@ public class PlayerCon : MonoBehaviour
 
         if(isSwap || isReload || !isFireReady) moveVec = Vector3.zero;
 
-        transform.position += moveVec * speed * (wDown ? 0.3f : 1f) *Time.deltaTime;
+        if(!isBorder) {
+            // Debug.Log(">>" + isBorder);
+            transform.position += moveVec * speed * (wDown ? 0.3f : 1f) * Time.deltaTime;
+        }
+
+        // transform.position += moveVec * speed * (wDown ? 0.3f : 1f) *Time.deltaTime;
         anim.SetBool("isRun", moveVec != Vector3.zero);
         anim.SetBool("isWalk", wDown);        
     }
@@ -232,6 +238,23 @@ public class PlayerCon : MonoBehaviour
     {
         speed *= 0.5f;
         isDodge = false;
+    }
+
+    void FreezeRotation()
+    {
+        // 케릭터가 스스로 회전하는 현상 방지
+        rigid.angularVelocity = Vector3.zero;
+    }
+
+    void StopToWall()
+    {
+        Debug.DrawRay(transform.position, transform.forward *5, Color.green);
+        isBorder = Physics.Raycast(transform.position, transform.forward, 5, LayerMask.GetMask("Wall"));
+    }
+
+    private void FixedUpdate() {
+        FreezeRotation();
+        StopToWall();
     }
 
     private void OnCollisionEnter(Collision other) {
