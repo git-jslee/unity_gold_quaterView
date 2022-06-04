@@ -10,6 +10,7 @@ public class PlayerCon : MonoBehaviour
     public bool[] hasWeapons;
     public GameObject[] grenades;
     public int hasGrenades;
+    public GameObject grenadeObj;
     public Camera followCamera; //총 발사시 - 카메라 변수 할당.
 
 
@@ -29,6 +30,7 @@ public class PlayerCon : MonoBehaviour
     bool wDown;
     bool jDown;
     bool fDown;
+    bool gDown;     //수류탄 던지기
     bool rDown;     // 총알 재장전
     // 무기 선택 버튼 1, 2, 3
     bool sDown1;
@@ -69,6 +71,7 @@ public class PlayerCon : MonoBehaviour
         Turn();
         Jump();
         Attack();
+        Grenade();
         Reload();
         Dodge();
         Swap(); //무기 교체 함수
@@ -82,6 +85,7 @@ public class PlayerCon : MonoBehaviour
         wDown = Input.GetButton("Walk");
         jDown = Input.GetButtonDown("Jump");
         fDown = Input.GetButton("Fire1");
+        gDown = Input.GetButtonDown("Fire2");
         rDown = Input.GetButtonDown("Reload");
         iDown = Input.GetButtonDown("Interaction");
         sDown1 = Input.GetButtonDown("Swap1");
@@ -132,6 +136,29 @@ public class PlayerCon : MonoBehaviour
             anim.SetBool("isJump", true);
             anim.SetTrigger("doJump");
             isJump = true;
+        }
+    }
+
+    void Grenade()
+    {
+        if (hasGrenades == 0) return;
+
+        if (gDown && !isReload && !isSwap) {
+            // 마우스 클릭한 위치로 던지기
+            Ray ray = followCamera.ScreenPointToRay(Input.mousePosition);
+            RaycastHit rayHit;
+            if (Physics.Raycast(ray, out rayHit, 100)) {
+                Vector3 nextVec = rayHit.point - transform.position;
+                nextVec.y = 10;  //수류탄을 약간 위로 던짐..
+
+                GameObject instantGrenade = Instantiate(grenadeObj, transform.position, transform.rotation);
+                Rigidbody rigidGrenade = instantGrenade.GetComponent<Rigidbody>();
+                rigidGrenade.AddForce(nextVec, ForceMode.Impulse);
+                rigidGrenade.AddTorque(Vector3.back * 10, ForceMode.Impulse);
+
+                hasGrenades--;
+                grenades[hasGrenades].SetActive(false);
+            }
         }
     }
 
@@ -277,11 +304,13 @@ public class PlayerCon : MonoBehaviour
                     if (coin > maxCoin) coin = maxCoin;
                     break;
                 case Item.Type.Heart:
+                    Debug.Log("**heart**");
                     health += item.value;
                     if (health > maxHealth) health = maxHealth;
                     break;
                 case Item.Type.Grenade:
-                grenades[hasGrenades].SetActive(true);
+                    Debug.Log("**grenade**");
+                    grenades[hasGrenades].SetActive(true);
                     hasGrenades += item.value;
                     if (hasGrenades > maxHasGrenades) hasGrenades = maxHasGrenades;
                     break;
