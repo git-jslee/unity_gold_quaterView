@@ -44,14 +44,15 @@ public class PlayerCon : MonoBehaviour
     bool isReload;
     bool isFireReady = true;
     bool isBorder = false;  // 플레이어 벽 충돌 감지
+    bool isDamage;          // 플레이어가 피격시 무적타임을 위한 변수 추가
 
     Vector3 moveVec;
     // Dodge(회피)중 방향전환 안되게.
     Vector3 dodgeVec;
-
     Animator anim;
-
     Rigidbody rigid;
+    MeshRenderer[] meshs;   // 플레이어 피격시 색상 변경용
+
     GameObject nearObject;
     // GameObject equipWeapon;     //장착중인 무기 저정 변수
     Weapon equipWeapon;
@@ -61,6 +62,7 @@ public class PlayerCon : MonoBehaviour
     private void Awake() {
         rigid = GetComponent<Rigidbody>();
         anim = GetComponentInChildren<Animator>();
+        meshs = GetComponentsInChildren<MeshRenderer>();
     }
 
     // Update is called once per frame
@@ -316,6 +318,32 @@ public class PlayerCon : MonoBehaviour
                     break;
             }
             Destroy(other.gameObject);
+        }
+        else if(other.tag == "EnemyBullet") {
+            if(!isDamage){
+                Bullet enemyBullet = other.GetComponent<Bullet>();
+                health -= enemyBullet.damage;
+                
+                // enemy type c 미사일 맞았을 경우
+                if(other.GetComponent<Rigidbody>() != null) 
+                    Destroy(other.gameObject);
+
+                StartCoroutine(OnDamage());
+            }
+        }
+    }
+
+    IEnumerator OnDamage()
+    {
+        isDamage = true;
+        foreach(MeshRenderer mesh in meshs) {
+            mesh.material.color = Color.yellow;
+        }
+        yield return new WaitForSeconds(1f);
+        isDamage = false;
+
+        foreach(MeshRenderer mesh in meshs) {
+            mesh.material.color = Color.white;
         }
     }
 
